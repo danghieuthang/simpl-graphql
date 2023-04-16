@@ -13,8 +13,9 @@ type Base struct {
 type User struct {
 	Id             int    `gorm:"primaryKey" json:"id"`
 	Name           string `json:"name"`
-	Email          string `json:"email"`
-	RoleId         int
+	Email          string `form:"unique" json:"email"`
+	Password       string
+	RoleId         *int
 	Role           Role      `gorm:"constraint:OnDelete:SET NULL;`
 	CreatedAt      time.Time `json:"createdAt"`
 	LastModifiedAt time.Time `json:"lastModifiedAt"`

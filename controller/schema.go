@@ -1,9 +1,13 @@
 package controller
 
 import (
+	"errors"
 	"example/web-service-gin/entity"
 	"fmt"
+	"os"
+	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/graphql/gqlerrors"
 	ast "github.com/graphql-go/graphql/language/ast"
@@ -36,7 +40,7 @@ var roleType = graphql.NewObject(graphql.ObjectConfig{
 		},
 	}})
 
-var userType = graphql.NewObject(graphql.ObjectConfig{
+var userViewType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "user",
 	Fields: graphql.Fields{
 		"id": &graphql.Field{
@@ -66,7 +70,7 @@ var userType = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
-func getRootMutation(contrs *Controllers) *graphql.Object {
+func getRootMutation(contrs *ControllerFactory) *graphql.Object {
 	return graphql.NewObject(graphql.ObjectConfig{
 		Name: "RootMutation",
 		Fields: graphql.Fields{
@@ -92,7 +96,7 @@ func getRootMutation(contrs *Controllers) *graphql.Object {
 				Type:        authType, // the return type for this field
 				Description: "Login",
 				Args: graphql.FieldConfigArgument{
-					"username": &graphql.ArgumentConfig{
+					"email": &graphql.ArgumentConfig{
 						Type: graphql.NewNonNull(graphql.String),
 					},
 					"password": &graphql.ArgumentConfig{
@@ -100,14 +104,37 @@ func getRootMutation(contrs *Controllers) *graphql.Object {
 					},
 				},
 				Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-					// username, _ := params.Args["username"].(string)
-					// password, _ := params.Args["password"].(string)
-					res := "asdasd"
-					return res, nil
+					email, _ := params.Args["email"].(string)
+					password, _ := params.Args["password"].(string)
+					res, err := contrs.userController.Login(email, password)
+					if err != nil {
+						return nil, gqlerrors.FormatError(err)
+					}
+					tokenExp := time.Now().Add(time.Hour * 24 * 30).Unix()
+					// Generate a jwt token
+					token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+						"sub": res.Email,
+						"exp": tokenExp,
+					})
+					// Sign and get the  complete encoded token as string using secret
+					tokenString, err := token.SignedString([]byte(os.Getenv(("JWT_SECRET"))))
+					if err != nil {
+						return nil, gqlerrors.FormatError(errors.New("Generate token fail"))
+					}
+					type authTypeResponse struct {
+						Token     string
+						TokenType string
+						expiresIn int64
+					}
+					return authTypeResponse{
+						Token:     tokenString,
+						TokenType: "jwt",
+						expiresIn: tokenExp,
+					}, nil
 				},
 			},
 			"createUser": &graphql.Field{
-				Type:        userType, // the return type for this field
+				Type:        userViewType, // the return type for this field
 				Description: "Create new user",
 				Args: graphql.FieldConfigArgument{
 					"id": &graphql.ArgumentConfig{
@@ -119,15 +146,20 @@ func getRootMutation(contrs *Controllers) *graphql.Object {
 					"email": &graphql.ArgumentConfig{
 						Type: graphql.NewNonNull(graphql.String),
 					},
+					"password": &graphql.ArgumentConfig{
+						Type: graphql.NewNonNull(graphql.String),
+					},
 				},
 				Resolve: func(params graphql.ResolveParams) (interface{}, error) {
 					id, _ := params.Args["id"].(int)
 					name, _ := params.Args["name"].(string)
 					email, _ := params.Args["email"].(string)
+					password, _ := params.Args["password"].(string)
 					res, err := contrs.userController.Create(&entity.User{
-						Id:    id,
-						Name:  name,
-						Email: email,
+						Id:       id,
+						Name:     name,
+						Email:    email,
+						Password: password,
 					})
 					if err != nil {
 						return nil, gqlerrors.FormatError(err)
@@ -136,7 +168,7 @@ func getRootMutation(contrs *Controllers) *graphql.Object {
 				},
 			},
 			"updateUser": &graphql.Field{
-				Type:        userType, // the return type for this field
+				Type:        userViewType, // the return type for this field
 				Description: "Update new user",
 				Args: graphql.FieldConfigArgument{
 					"id": &graphql.ArgumentConfig{
@@ -168,7 +200,7 @@ func getRootMutation(contrs *Controllers) *graphql.Object {
 	})
 }
 
-func getRootQuery(contrs *Controllers) *graphql.Object {
+func getRootQuery(contrs *ControllerFactory) *graphql.Object {
 	return graphql.NewObject(graphql.ObjectConfig{
 		Name: "RootQuery",
 		Fields: graphql.Fields{
@@ -190,7 +222,7 @@ func getRootQuery(contrs *Controllers) *graphql.Object {
 				},
 			},
 			"user": &graphql.Field{
-				Type: userType,
+				Type: userViewType,
 				Args: graphql.FieldConfigArgument{
 					"id": &graphql.ArgumentConfig{
 						Type:        graphql.Int,
@@ -210,7 +242,7 @@ func getRootQuery(contrs *Controllers) *graphql.Object {
 				},
 			},
 			"users": &graphql.Field{
-				Type: graphql.NewList(userType),
+				Type: graphql.NewList(userViewType),
 				Args: graphql.FieldConfigArgument{
 					"name": &graphql.ArgumentConfig{
 						Type:        graphql.String,
@@ -287,4 +319,9 @@ func selectedFieldsFromSelections(params graphql.ResolveParams, selections []ast
 		}
 	}
 	return selected, nil
+}
+
+type ErrorResponse struct {
+	Code    string
+	Message string
 }

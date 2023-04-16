@@ -124,25 +124,34 @@
 package main
 
 import (
+	"context"
 	"example/web-service-gin/controller"
 	"example/web-service-gin/database"
+	"example/web-service-gin/entity"
+	"example/web-service-gin/initializers"
+	"example/web-service-gin/pkg/jwt"
 	"example/web-service-gin/repository"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
 
+func init() {
+	initializers.LoadEnvVariables()
+	database.InitializeDatabase()
+	database.SyncDatabase()
+}
+
 func main() {
-	port := "8080"
 
-	db := database.GetDatabase()
-
-	repos := repository.InitRepositories(db)
+	repos := repository.InitRepositories(database.DB)
 	controllers := controller.InitControllers(repos)
 	schema := controller.Schema(controllers)
 
-	http.Handle("/graphql", PerformanceMiddleware(controller.GraphqlHandlfunc(schema)))
+	http.Handle("/graphql", PerformanceMiddleware(AuthenticationMiddleware(controller.GraphqlHandlfunc(schema))))
 
+	port := os.Getenv("PORT")
 	fmt.Println("server is started at: http://localhost:/" + port + "/")
 	fmt.Println("graphql api server is started at: http://localhost:" + port + "/graphql")
 	http.ListenAndServe(":"+port, nil)
@@ -161,4 +170,37 @@ func PerformanceMiddleware(h http.Handler) http.Handler {
 		fmt.Printf("%s: Request Duration %s\n", uri, duration)
 	}
 	return http.HandlerFunc(perfomanceFn)
+}
+
+var userCtxKey = &contextKey{"user"}
+
+type contextKey struct {
+	name string
+}
+
+func AuthenticationMiddleware(next http.Handler) http.Handler {
+	authenticationFn := func(rw http.ResponseWriter, r *http.Request) {
+		header := r.Header.Get("Authorization")
+		// Allow unauthenticated users in
+		if header == "" {
+			next.ServeHTTP(rw, r)
+			return
+		}
+
+		//validate jwt token
+		tokenStr := header
+		username, err := jwt.ParseToken(tokenStr)
+		if err != nil {
+			http.Error(rw, "Invalid token", http.StatusForbidden)
+			return
+		}
+		user := entity.User{
+			Email: username,
+		}
+		// put it in context
+		ctx := context.WithValue(r.Context(), userCtxKey, &user)
+		r = r.WithContext(ctx)
+		next.ServeHTTP(rw, r)
+	}
+	return http.HandlerFunc(authenticationFn)
 }

@@ -34,3 +34,8 @@ func (c *Controller) List(name string) (*[]entity.User, error) {
 	res, err := c.service.List(name)
 	return res, err
 }
+
+func (c *Controller) Login(email string, password string) (*entity.User, error) {
+	res, err := c.service.Login(email, password)
+	return res, err
+}

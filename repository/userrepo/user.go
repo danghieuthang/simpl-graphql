@@ -5,6 +5,7 @@ import (
 	"example/web-service-gin/entity"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -14,6 +15,7 @@ type IUserRepo interface {
 	List(name string) (*[]entity.User, error)
 	Update(u *entity.User) (*entity.User, error)
 	Create(u *entity.User) (*entity.User, error)
+	Login(email string, password string) (*entity.User, error)
 	// Delete(*entity.User) error
 }
 
@@ -36,6 +38,18 @@ func (repo *UserRepo) View(id int) (*entity.User, error) {
 	return &user, nil
 }
 
+func (repo *UserRepo) Login(email string, password string) (*entity.User, error) {
+	var user entity.User
+	repo.db.Where("email=?", email).First(&user)
+	if user.Id == 0 {
+		return nil, errors.New("User not exist")
+	}
+	if !CheckPasswordHash(password, user.Password) {
+		return nil, errors.New("Password incorrect")
+	}
+	return &user, nil
+}
+
 func (repo *UserRepo) List(name string) (*[]entity.User, error) {
 	var users []entity.User
 	if len(name) == 0 {
@@ -48,6 +62,7 @@ func (repo *UserRepo) List(name string) (*[]entity.User, error) {
 }
 
 func (repo *UserRepo) Create(u *entity.User) (*entity.User, error) {
+	u.Password, _ = HashPassword(u.Password)
 	var isExistId int
 	repo.db.Raw("SELECT id FROM users where id=?", *&u.Id).Scan(&isExistId)
 	if isExistId == 0 {
@@ -72,4 +87,16 @@ func (repo *UserRepo) Update(u *entity.User) (*entity.User, error) {
 	repo.db.Save(&dbUser)
 
 	return &dbUser, nil
+}
+
+// HashPassword hashes given password
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+// CheckPassword hash compares raw password with it's hashed values
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }

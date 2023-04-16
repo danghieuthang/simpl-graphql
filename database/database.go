@@ -1,7 +1,7 @@
 package database
 
 import (
-	"fmt"
+	"os"
 
 	"example/web-service-gin/entity"
 
@@ -9,20 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "postgres"
-	password = "1"
-	dbname   = "golang"
-)
+var DB *gorm.DB
 
-func GetDatabase() *gorm.DB {
-	psqlConn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err := gorm.Open(postgres.Open(psqlConn), &gorm.Config{})
+func InitializeDatabase() {
+	var err error
+	psqlConn := os.Getenv("DB")
+	DB, err = gorm.Open(postgres.Open(psqlConn), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
-	db.Migrator().AutoMigrate(&entity.User{}, &entity.Role{})
-	return db
+}
+
+func SyncDatabase() {
+	DB.Migrator().AutoMigrate(&entity.User{}, &entity.Role{})
 }

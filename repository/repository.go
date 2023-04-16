@@ -7,15 +7,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type Repositories struct {
+type RepositoryFactory struct {
 	UserRepo *userrepo.UserRepo
 	RoleRepo *rolerepo.RoleRepo
 }
 
-func InitRepositories(db *gorm.DB) *Repositories {
+func InitRepositories(db *gorm.DB) *RepositoryFactory {
 	userrepo := userrepo.NewUserRepo(db)
 	rolerepo := rolerepo.NewRoleRepo(db)
-	return &Repositories{
+	return &RepositoryFactory{
 		UserRepo: userrepo,
 		RoleRepo: rolerepo,
 	}

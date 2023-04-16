@@ -10,7 +10,7 @@ import (
 )
 
 // Schema builds a graphql schema and returns it
-func Schema(controllers *Controllers) graphql.Schema {
+func Schema(controllers *ControllerFactory) graphql.Schema {
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
 		Query:    getRootQuery(controllers),
 		Mutation: getRootMutation(controllers),

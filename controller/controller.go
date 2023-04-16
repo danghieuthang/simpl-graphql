@@ -5,12 +5,12 @@ import (
 	"example/web-service-gin/repository"
 )
 
-type Controllers struct {
+type ControllerFactory struct {
 	userController *user.Controller
 }
 
-func InitControllers(repositories *repository.Repositories) *Controllers {
-	return &Controllers{
+func InitControllers(repositories *repository.RepositoryFactory) *ControllerFactory {
+	return &ControllerFactory{
 		userController: user.InitController(repositories.UserRepo),
 	}
 }
