@@ -19,7 +19,9 @@ func PreLoadWithSelect(sourceTx *gorm.DB, fields []string, root string) *gorm.DB
 			return db.Select(value)
 		})
 	}
-	return sourceTx.Select(groupFields[root])
+	a := groupFields[root]
+	a = append(a, "role_id")
+	return sourceTx.Select(a)
 }
 
 func GroupField(fields []string, root string) map[string][]string {
