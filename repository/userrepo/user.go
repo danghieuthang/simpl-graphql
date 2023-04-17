@@ -3,15 +3,15 @@ package userrepo
 import (
 	"errors"
 	"example/web-service-gin/entity"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type IUserRepo interface {
-	View(id int) (*entity.User, error)
+	View(id int, fields []string) (*entity.User, error)
 	List(name string) (*[]entity.User, error)
 	Update(u *entity.User) (*entity.User, error)
 	Create(u *entity.User) (*entity.User, error)
@@ -23,18 +23,63 @@ type UserRepo struct {
 	db *gorm.DB
 }
 
-func NewUserRepo(db *gorm.DB) *UserRepo {
+func NewUserRepo(db *gorm.DB) IUserRepo {
 	return &UserRepo{
 		db: db,
 	}
 }
-
-func (repo *UserRepo) View(id int) (*entity.User, error) {
-	var user entity.User
-	repo.db.Preload(clause.Associations).Where("users.id=?", id).First(&user)
-	if user.Id == 0 {
-		return nil, errors.New("Id not exist")
+func GroupFieldToPreload(fields []string, root string) map[string][]string {
+	group := make(map[string][]string)
+	for _, v := range fields {
+		if strings.Contains(v, ".") {
+			s := strings.Split(v, ".")
+			if value, ok := group[s[0]]; ok {
+				group[s[0]] = append(value, strings.Title(s[1]))
+				continue
+			}
+			group[s[0]] = []string{s[1]}
+			continue
+		}
+		if value, ok := group[root]; ok {
+			group[root] = append(value, v)
+			continue
+		}
+		group[root] = []string{}
 	}
+	return group
+}
+func (repo *UserRepo) View(id int, fields []string) (*entity.User, error) {
+	var user entity.User
+	group := GroupFieldToPreload(fields, "user")
+	for i, v := range fields {
+		if !strings.Contains(v, ".") {
+			fields[i] = "users." + v
+		}
+	}
+
+	// type Test struct {
+	// 	Name   string
+	// 	RoleId int
+	// 	Role   entity.Role
+	// }
+	// var test Test
+	// repo.db.Where("users.id=?", id).Joins("left join roles on users.role_id=roles.id").Select(fields).Find(&user)
+	// repo.db.Preload(clause.Associations).Where("users.id=?", id).First(&user)
+	// repo.db.Model(&user).Preload(clause.Associations).Where("users.id=?", id).First(&test)
+	query := repo.db.Debug()
+	for key, list := range group {
+		query = query.Preload(key, func(db *gorm.DB) *gorm.DB {
+			return db.Select(list)
+		})
+	}
+	query.Where("users.id=?", id).Select(group["user"]).First(&user)
+	// repo.db.Debug().Preload("Role", func(db *gorm.DB) *gorm.DB {
+	// 	return db.Select("name")
+	// }).Where("users.id=?", id).Select(group["user"]).First(&user)
+	// repo.db.Preload(clause.Associations).Where("users.id=?", id).First(&user)
+	// if user.Id == 0 && fields.contains {
+	// 	return nil, errors.New("Id not exist")
+	// }
 	return &user, nil
 }
 

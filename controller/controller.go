@@ -6,11 +6,11 @@ import (
 )
 
 type ControllerFactory struct {
-	userController *user.Controller
+	UserController *user.Controller
 }
 
 func InitControllers(repositories *repository.RepositoryFactory) *ControllerFactory {
 	return &ControllerFactory{
-		userController: user.InitController(repositories.UserRepo),
+		UserController: user.InitController(repositories.UserRepo),
 	}
 }

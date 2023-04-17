@@ -127,9 +127,10 @@ import (
 	"context"
 	"example/web-service-gin/controller"
 	"example/web-service-gin/database"
-	"example/web-service-gin/entity"
+	"example/web-service-gin/gql"
 	"example/web-service-gin/initializers"
 	"example/web-service-gin/pkg/jwt"
+	"example/web-service-gin/pkg/log"
 	"example/web-service-gin/repository"
 	"fmt"
 	"net/http"
@@ -139,43 +140,41 @@ import (
 
 func init() {
 	initializers.LoadEnvVariables()
+	log.InitializeLogger()
+	// log.Logger.Info("Initialize database...")
 	database.InitializeDatabase()
+	// log.Logger.Info("Sync database...")
 	database.SyncDatabase()
 }
 
 func main() {
-
+	// log.Logger.Info("Initilize graphql endpoind...")
 	repos := repository.InitRepositories(database.DB)
-	controllers := controller.InitControllers(repos)
-	schema := controller.Schema(controllers)
+	controllerFactory := controller.InitControllers(repos)
+	schema := gql.Schema(controllerFactory)
 
-	http.Handle("/graphql", PerformanceMiddleware(AuthenticationMiddleware(controller.GraphqlHandlfunc(schema))))
+	http.Handle("/graphql", PerformanceMiddleware(AuthenticationMiddleware(gql.GraphqlHandlfunc(schema))))
 
 	port := os.Getenv("PORT")
-	fmt.Println("server is started at: http://localhost:/" + port + "/")
-	fmt.Println("graphql api server is started at: http://localhost:" + port + "/graphql")
+	fmt.Println("Server is started at: http://localhost:/" + port + "/")
+	fmt.Println("Graphql api server is started at: http://localhost:" + port + "/graphql")
 	http.ListenAndServe(":"+port, nil)
-
 }
 
-func PerformanceMiddleware(h http.Handler) http.Handler {
+func PerformanceMiddleware(next http.Handler) http.Handler {
 	perfomanceFn := func(rw http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		uri := r.RequestURI
 
-		h.ServeHTTP(rw, r) // serve the original request
+		next.ServeHTTP(rw, r) // serve the original request
 
 		duration := time.Since(start)
 		// log request details
-		fmt.Printf("%s: Request Duration %s\n", uri, duration)
+		if duration.Seconds() > 10 {
+			log.Logger.Info(fmt.Sprintf("%s: Log Duration %s\n", uri, duration))
+		}
 	}
 	return http.HandlerFunc(perfomanceFn)
-}
-
-var userCtxKey = &contextKey{"user"}
-
-type contextKey struct {
-	name string
 }
 
 func AuthenticationMiddleware(next http.Handler) http.Handler {
@@ -189,16 +188,13 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 
 		//validate jwt token
 		tokenStr := header
-		username, err := jwt.ParseToken(tokenStr)
+		user, err := jwt.ParseToken(tokenStr)
 		if err != nil {
 			http.Error(rw, "Invalid token", http.StatusForbidden)
 			return
 		}
-		user := entity.User{
-			Email: username,
-		}
 		// put it in context
-		ctx := context.WithValue(r.Context(), userCtxKey, &user)
+		ctx := context.WithValue(r.Context(), "currentUser", user)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(rw, r)
 	}

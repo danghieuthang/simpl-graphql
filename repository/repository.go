@@ -8,8 +8,8 @@ import (
 )
 
 type RepositoryFactory struct {
-	UserRepo *userrepo.UserRepo
-	RoleRepo *rolerepo.RoleRepo
+	UserRepo userrepo.IUserRepo
+	RoleRepo rolerepo.IRoleRepo
 }
 
 func InitRepositories(db *gorm.DB) *RepositoryFactory {

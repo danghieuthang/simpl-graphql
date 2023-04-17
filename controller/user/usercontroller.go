@@ -9,14 +9,14 @@ type Controller struct {
 	service userrepo.IUserRepo
 }
 
-func InitController(userRepo *userrepo.UserRepo) *Controller {
+func InitController(userRepo userrepo.IUserRepo) *Controller {
 	return &Controller{
 		service: userRepo,
 	}
 }
 
-func (c *Controller) View(id int) (*entity.User, error) {
-	user, err := c.service.View(id)
+func (c *Controller) View(id int, fields []string) (*entity.User, error) {
+	user, err := c.service.View(id, fields)
 	return user, err
 }
 
