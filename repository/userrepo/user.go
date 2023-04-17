@@ -3,7 +3,7 @@ package userrepo
 import (
 	"errors"
 	"example/web-service-gin/entity"
-	"strings"
+	"example/web-service-gin/utils"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -28,34 +28,8 @@ func NewUserRepo(db *gorm.DB) IUserRepo {
 		db: db,
 	}
 }
-func GroupFieldToPreload(fields []string, root string) map[string][]string {
-	group := make(map[string][]string)
-	for _, v := range fields {
-		if strings.Contains(v, ".") {
-			s := strings.Split(v, ".")
-			if value, ok := group[s[0]]; ok {
-				group[s[0]] = append(value, strings.Title(s[1]))
-				continue
-			}
-			group[s[0]] = []string{s[1]}
-			continue
-		}
-		if value, ok := group[root]; ok {
-			group[root] = append(value, v)
-			continue
-		}
-		group[root] = []string{}
-	}
-	return group
-}
 func (repo *UserRepo) View(id int, fields []string) (*entity.User, error) {
 	var user entity.User
-	group := GroupFieldToPreload(fields, "user")
-	for i, v := range fields {
-		if !strings.Contains(v, ".") {
-			fields[i] = "users." + v
-		}
-	}
 
 	// type Test struct {
 	// 	Name   string
@@ -66,13 +40,23 @@ func (repo *UserRepo) View(id int, fields []string) (*entity.User, error) {
 	// repo.db.Where("users.id=?", id).Joins("left join roles on users.role_id=roles.id").Select(fields).Find(&user)
 	// repo.db.Preload(clause.Associations).Where("users.id=?", id).First(&user)
 	// repo.db.Model(&user).Preload(clause.Associations).Where("users.id=?", id).First(&test)
-	query := repo.db.Debug()
-	for key, list := range group {
-		query = query.Preload(key, func(db *gorm.DB) *gorm.DB {
-			return db.Select(list)
-		})
-	}
-	query.Where("users.id=?", id).Select(group["user"]).First(&user)
+	// group := utils.GroupField(fields, "user")
+	utils.PreLoadWithSelect(repo.db.Debug(), fields, "user").Where("users.id=?", id).First(&user)
+	// for key, value := range group {
+	// 	if key == "user" {
+	// 		continue
+	// 	}
+	// 	query = query.Preload(key, func(db *gorm.DB) *gorm.DB {
+	// 		return db.Select(value)
+	// 	})
+	// }
+	// query.Preload("Role", func(db *gorm.DB) *gorm.DB {
+	// 	return db.Select([]string{"id", "name"})
+	// }).Where("users.id=?", id).Select(group["user"]).First(&user)
+
+	// query.Where("users.id=?", id).Select(group["user"]).First(&user)
+	// tx := utils.PreLoadWithSelect(repo.db.Debug(), fields, "user")
+	// tx.Where("users.id=?", id).First(&user)
 	// repo.db.Debug().Preload("Role", func(db *gorm.DB) *gorm.DB {
 	// 	return db.Select("name")
 	// }).Where("users.id=?", id).Select(group["user"]).First(&user)
