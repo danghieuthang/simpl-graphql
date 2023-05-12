@@ -1,8 +1,8 @@
-package jwt
+package auth
 
 import (
 	"example/web-service-gin/pkg/entity"
-	"log"
+	"example/web-service-gin/pkg/logger"
 	"os"
 	"time"
 
@@ -19,30 +19,33 @@ func GenerateToken(user *entity.User) (string, error) {
 	claims := token.Claims.(jwt.MapClaims)
 	/* Set token claims */
 	claims["email"] = user.Email
+	claims["role"] = user.Role.Name
 	claims["name"] = user.Name
 	claims["sub"] = user.Id
 	claims["exp"] = time.Now().Add(time.Hour * 24 * 30).Unix()
 	tokenString, err := token.SignedString(SecretKey)
 	if err != nil {
-		log.Fatal("Error in Generating key")
+		logger.Logger.Fatal("Error in Generating key")
 		return "", err
 	}
 	return tokenString, nil
 }
 
 // ParseToken parses a jwt token and returns the user in it's claims
-func ParseToken(tokenStr string) (*entity.User, error) {
+func ParseToken(tokenStr string) (*AuthenticatedUser, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		return SecretKey, nil
 	})
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		email := claims["email"].(string)
+		role := claims["role"].(string)
 		name := claims["name"].(string)
 		id := int(claims["sub"].(float64))
-		return &entity.User{
+		return &AuthenticatedUser{
 			Email: email,
 			Name:  name,
 			Id:    id,
+			Role:  role,
 		}, nil
 	} else {
 		return nil, err

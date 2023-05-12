@@ -2,12 +2,13 @@ package userrepo
 
 import (
 	"errors"
-	"example/web-service-gin/entity"
-	"strings"
+	"example/web-service-gin/internal/constant/app_error"
+	"example/web-service-gin/pkg/entity"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type IUserRepo interface {
@@ -28,64 +29,16 @@ func NewUserRepo(db *gorm.DB) IUserRepo {
 		db: db,
 	}
 }
-func GroupFieldToPreload(fields []string, root string) map[string][]string {
-	group := make(map[string][]string)
-	for _, v := range fields {
-		if strings.Contains(v, ".") {
-			s := strings.Split(v, ".")
-			if value, ok := group[s[0]]; ok {
-				group[s[0]] = append(value, strings.Title(s[1]))
-				continue
-			}
-			group[s[0]] = []string{s[1]}
-			continue
-		}
-		if value, ok := group[root]; ok {
-			group[root] = append(value, v)
-			continue
-		}
-		group[root] = []string{}
-	}
-	return group
-}
 func (repo *UserRepo) View(id int, fields []string) (*entity.User, error) {
 	var user entity.User
-	group := GroupFieldToPreload(fields, "user")
-	for i, v := range fields {
-		if !strings.Contains(v, ".") {
-			fields[i] = "users." + v
-		}
-	}
-
-	// type Test struct {
-	// 	Name   string
-	// 	RoleId int
-	// 	Role   entity.Role
-	// }
-	// var test Test
-	// repo.db.Where("users.id=?", id).Joins("left join roles on users.role_id=roles.id").Select(fields).Find(&user)
-	// repo.db.Preload(clause.Associations).Where("users.id=?", id).First(&user)
-	// repo.db.Model(&user).Preload(clause.Associations).Where("users.id=?", id).First(&test)
-	query := repo.db.Debug()
-	for key, list := range group {
-		query = query.Preload(key, func(db *gorm.DB) *gorm.DB {
-			return db.Select(list)
-		})
-	}
-	query.Where("users.id=?", id).Select(group["user"]).First(&user)
-	// repo.db.Debug().Preload("Role", func(db *gorm.DB) *gorm.DB {
-	// 	return db.Select("name")
-	// }).Where("users.id=?", id).Select(group["user"]).First(&user)
-	// repo.db.Preload(clause.Associations).Where("users.id=?", id).First(&user)
-	// if user.Id == 0 && fields.contains {
-	// 	return nil, errors.New("Id not exist")
-	// }
+	repo.db.Where("users.id=?", id).Preload(clause.Associations).Find(&user)
+	// utils.PreLoadWithSelect(repo.db.Debug(), fields, "user").Where("users.id=?", id).First(&user)
 	return &user, nil
 }
 
 func (repo *UserRepo) Login(email string, password string) (*entity.User, error) {
 	var user entity.User
-	repo.db.Where("email=?", email).First(&user)
+	repo.db.Where("email=?", email).Preload(clause.Associations).Find(&user)
 	if user.Id == 0 {
 		return nil, errors.New("User not exist")
 	}
@@ -114,8 +67,7 @@ func (repo *UserRepo) Create(u *entity.User) (*entity.User, error) {
 		repo.db.Create(&u)
 		return u, nil
 	}
-	return nil, errors.New("Id was exist")
-
+	return nil, errors.New(app_error.USER_ID_EXIST_ID)
 }
 
 func (repo *UserRepo) Update(u *entity.User) (*entity.User, error) {

@@ -6,9 +6,9 @@ import (
 	"github.com/graphql-go/graphql"
 )
 
-func GetRootQuery(contrs *controller.ControllerFactory) *graphql.Object {
+func GetRootQuery(contrs *controller.ServiceFactory) *graphql.Object {
 	resolver := Resolver{
-		ControllerFactory: contrs,
+		ServiceFactory: contrs,
 	}
 
 	return graphql.NewObject(graphql.ObjectConfig{

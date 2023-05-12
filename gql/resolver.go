@@ -12,7 +12,7 @@ import (
 )
 
 type Resolver struct {
-	ControllerFactory *controller.ControllerFactory
+	ServiceFactory *controller.ServiceFactory
 }
 
 func (r *Resolver) CreateUser(params graphql.ResolveParams) (interface{}, error) {
@@ -20,7 +20,7 @@ func (r *Resolver) CreateUser(params graphql.ResolveParams) (interface{}, error)
 	name, _ := params.Args["name"].(string)
 	email, _ := params.Args["email"].(string)
 	password, _ := params.Args["password"].(string)
-	res, err := r.ControllerFactory.UserController.Create(&entity.User{
+	res, err := r.ServiceFactory.UserService.Create(&entity.User{
 		Id:       id,
 		Name:     name,
 		Email:    email,
@@ -35,7 +35,7 @@ func (r *Resolver) CreateUser(params graphql.ResolveParams) (interface{}, error)
 func (r *Resolver) Login(params graphql.ResolveParams) (interface{}, error) {
 	email, _ := params.Args["email"].(string)
 	password, _ := params.Args["password"].(string)
-	res, err := r.ControllerFactory.UserController.Login(email, password)
+	res, err := r.ServiceFactory.UserService.Login(email, password)
 	if err != nil {
 		return nil, gqlerrors.FormatError(err)
 	}
@@ -55,7 +55,7 @@ func (r *Resolver) UpdateUser(params graphql.ResolveParams) (interface{}, error)
 	id, _ := params.Args["id"].(int)
 	name, _ := params.Args["name"].(string)
 	email, _ := params.Args["email"].(string)
-	res, err := r.ControllerFactory.UserController.Update(&entity.User{
+	res, err := r.ServiceFactory.UserService.Update(&entity.User{
 		Id:    id,
 		Name:  name,
 		Email: email,
@@ -74,7 +74,7 @@ func (r *Resolver) Me(params graphql.ResolveParams) (interface{}, error) {
 func (r *Resolver) GetUser(params graphql.ResolveParams) (interface{}, error) {
 	id := params.Args["id"].(int)
 	selectedFields, err := GetSelectedFields(params)
-	user, err := r.ControllerFactory.UserController.View(id, selectedFields)
+	user, err := r.ServiceFactory.UserService.View(id, selectedFields)
 	if err != nil {
 		return nil, gqlerrors.FormatError(err)
 	}
@@ -82,7 +82,7 @@ func (r *Resolver) GetUser(params graphql.ResolveParams) (interface{}, error) {
 }
 func (r *Resolver) GetUsers(params graphql.ResolveParams) (interface{}, error) {
 	name := params.Args["name"].(string)
-	users, err := r.ControllerFactory.UserController.List(name)
+	users, err := r.ServiceFactory.UserService.List(name)
 	if err != nil {
 		return nil, gqlerrors.FormatError(err)
 	}

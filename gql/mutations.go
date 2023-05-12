@@ -6,9 +6,9 @@ import (
 	"github.com/graphql-go/graphql"
 )
 
-func GetRootMutation(contrs *controller.ControllerFactory) *graphql.Object {
+func GetRootMutation(contrs *controller.ServiceFactory) *graphql.Object {
 	resolver := Resolver{
-		ControllerFactory: contrs,
+		ServiceFactory: contrs,
 	}
 
 	return graphql.NewObject(graphql.ObjectConfig{
