@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"example/web-service-gin/internal/constant/app_error"
 	"example/web-service-gin/pkg/entity"
@@ -13,29 +14,29 @@ import (
 type IUserService interface {
 	View(id int, fields []string) (*entity.User, error)
 	List(name string, page int, pageSize int) (*[]entity.User, int, error)
-	Update(u *entity.User) (*entity.User, error)
-	Create(u *entity.User) (*entity.User, error)
+	Update(u *entity.User, ctx context.Context) (*entity.User, error)
+	Create(u *entity.User, ctx context.Context) (*entity.User, error)
 	Login(email string, password string) (*entity.User, error)
 }
 
-type UserService struct {
+type userService struct {
 	repository repository.IRepository
 }
 
 func InitUserService(repository repository.IRepository) IUserService {
-	return &UserService{
+	return &userService{
 		repository: repository,
 	}
 }
 
-func (c *UserService) View(id int, fields []string) (*entity.User, error) {
+func (c *userService) View(id int, fields []string) (*entity.User, error) {
 	var user entity.User
 	condition := fmt.Sprintf("id = %d ", id)
 	err := c.repository.GetWhere(&user, condition, "Role")
 	return &user, err
 }
 
-func (c *UserService) Create(u *entity.User) (*entity.User, error) {
+func (c *userService) Create(u *entity.User, ctx context.Context) (*entity.User, error) {
 	var user entity.User
 	condition := fmt.Sprintf("id = %d or email = '%s'", u.Id, u.Email)
 	err := c.repository.GetWhere(&user, condition)
@@ -45,22 +46,25 @@ func (c *UserService) Create(u *entity.User) (*entity.User, error) {
 	if user.Email == u.Email {
 		return nil, errors.New(app_error.USER_EMAIL_EXIST)
 	}
-	err = c.repository.Create(u)
+	err = c.repository.CreateWithContext(u, ctx)
 	if err != nil {
 		return nil, err
 	}
 	return u, err
 }
 
-func (c *UserService) Update(u *entity.User) (*entity.User, error) {
-	err := c.repository.Save(u)
+func (c *userService) Update(u *entity.User, ctx context.Context) (*entity.User, error) {
+	err := c.repository.SaveWithContext(u, ctx)
 	if err != nil {
 		return nil, err
 	}
+	u.Id = 0
+	u.Name = "transaction"
+	err = c.repository.SaveWithContext(u, ctx)
 	return u, err
 }
 
-func (c *UserService) List(name string, page int, pageSize int) (*[]entity.User, int, error) {
+func (c *userService) List(name string, page int, pageSize int) (*[]entity.User, int, error) {
 	var users []entity.User
 	var total int64
 	condition := fmt.Sprintf("name ilike '%%%v%%' ", name)
@@ -69,7 +73,7 @@ func (c *UserService) List(name string, page int, pageSize int) (*[]entity.User,
 	return &users, int(total), nil
 }
 
-func (c *UserService) Login(email string, password string) (*entity.User, error) {
+func (c *userService) Login(email string, password string) (*entity.User, error) {
 	var user entity.User
 	condition := fmt.Sprintf("email = '%s' ", email)
 	err := c.repository.GetWhere(&user, condition)

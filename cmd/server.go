@@ -4,9 +4,10 @@ import (
 	"context"
 	"example/web-service-gin/config"
 	"example/web-service-gin/graph"
+	"example/web-service-gin/graph/extensions"
 	"example/web-service-gin/internal/auth"
 	"example/web-service-gin/internal/constant/app_error"
-	"example/web-service-gin/pkg/audit"
+	"example/web-service-gin/internal/middleware"
 	"example/web-service-gin/pkg/database"
 	"example/web-service-gin/pkg/file"
 	"example/web-service-gin/pkg/logger"
@@ -16,11 +17,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/go-chi/chi"
+	"github.com/rs/cors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
@@ -42,6 +44,15 @@ func main() {
 
 	repository := repository.NewGormRepository(database.DB, logger.Logger)
 	serviceFactory := service.InitServices(repository)
+
+	router := chi.NewRouter()
+	// Add CORS middleware around every request
+	// See https://github.com/rs/cors for full option listing
+	router.Use(cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:8080"},
+		AllowCredentials: true,
+		Debug:            true,
+	}).Handler)
 
 	c := graph.Config{Resolvers: &graph.Resolver{
 		ServiceFactory: serviceFactory,
@@ -70,7 +81,7 @@ func main() {
 	}
 
 	server := handler.NewDefaultServer(graph.NewExecutableSchema(c))
-
+	server.Use(extensions.GqlTransaction{DB: database.DB})
 	server.SetErrorPresenter(func(ctx context.Context, e error) *gqlerror.Error {
 		err := graphql.DefaultErrorPresenter(ctx, e)
 		err.Extensions = map[string]interface{}{
@@ -80,54 +91,14 @@ func main() {
 		return err
 	})
 
-	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", AuthenticationMiddleware(PerformanceMiddleware(server)))
-	http.HandleFunc("/download-file", file.DownloadFile)
-	http.HandleFunc("/download-aspose-format", file.DownloadFormatFile)
+	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	router.Handle("/query", middleware.NewMiddleware(server))
+	router.HandleFunc("/download-file", file.DownloadFile)
+	router.HandleFunc("/download-aspose-format", file.DownloadFormatFile)
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
-}
-
-func PerformanceMiddleware(next http.Handler) http.Handler {
-	perfomanceFn := func(rw http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		uri := r.RequestURI
-
-		next.ServeHTTP(rw, r) // serve the original request
-
-		duration := time.Since(start)
-		// log request details
-		if duration.Seconds() > 10 {
-			logger.Logger.Info(fmt.Sprintf("%s: Log Duration %s\n", uri, duration))
-		}
+	err := http.ListenAndServe(":"+port, router)
+	if err != nil {
+		panic(err)
 	}
-	return http.HandlerFunc(perfomanceFn)
-}
-
-func AuthenticationMiddleware(next http.Handler) http.Handler {
-	authenticationFn := func(rw http.ResponseWriter, r *http.Request) {
-		header := r.Header.Get("Authorization")
-		// Allow unauthenticated users in
-		if header == "" {
-			next.ServeHTTP(rw, r)
-			return
-		}
-
-		//validate jwt token
-		tokenStr := header
-		user, err := auth.ParseToken(tokenStr)
-		if err != nil {
-			http.Error(rw, "Invalid token", http.StatusForbidden)
-			return
-		}
-		// put it in context
-		ctx := context.WithValue(r.Context(), "currentUser", user)
-		r = r.WithContext(ctx)
-
-		database.DB.Set(audit.CurrentUserDBScopeKey, user.Email)
-
-		next.ServeHTTP(rw, r)
-	}
-	return http.HandlerFunc(authenticationFn)
 }

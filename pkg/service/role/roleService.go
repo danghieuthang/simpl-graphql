@@ -11,11 +11,11 @@ type IRoleService interface {
 	List(name string, page int, pageSize int) (*[]entity.Role, int, error)
 }
 
-type RoleService struct {
+type roleService struct {
 	repository repository.IRepository
 }
 
-func (c *RoleService) List(name string, page int, pageSize int) (*[]entity.Role, int, error) {
+func (c *roleService) List(name string, page int, pageSize int) (*[]entity.Role, int, error) {
 	var roles []entity.Role
 	var total int64
 	condition := fmt.Sprintf("name ilike '%%%v%%' ", name)
@@ -23,13 +23,13 @@ func (c *RoleService) List(name string, page int, pageSize int) (*[]entity.Role,
 	c.repository.CountWhere(&roles, &total, condition)
 	return &roles, int(total), nil
 }
-func (c *RoleService) View(id int, fields []string) (*entity.Role, error) {
+func (c *roleService) View(id int, fields []string) (*entity.Role, error) {
 	var user entity.Role
 	c.repository.GetOneByField(&user, "id", id)
 	return &user, nil
 }
 func InitRoleService(repository repository.IRepository) IRoleService {
-	return &RoleService{
+	return &roleService{
 		repository: repository,
 	}
 }

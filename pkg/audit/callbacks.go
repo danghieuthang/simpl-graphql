@@ -1,7 +1,9 @@
 package audit
 
 import (
+	"example/web-service-gin/internal/auth"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -19,6 +21,8 @@ const (
 	whoAuditFieldCount       = 2
 	updatedByObjectFieldName = "UpdatedBy"
 	createdByObjectFieldName = "CreatedBy"
+	createdAtFieldName       = "CreatedAt"
+	lastModifiedFieldName    = "LastModifiedAt"
 )
 
 // isAuditable check if the audit.model exists in the inputObject or not
@@ -38,9 +42,9 @@ func isAuditable(scope *gorm.DB) (isAuditable bool) {
 
 // GetCurrentUser gets the current user from db scope
 func GetCurrentUser(scope *gorm.DB) (string, bool) {
-	user, hasUser := scope.Get(CurrentUserDBScopeKey)
+	user, hasUser := scope.Statement.Context.Value("currentUser").(*auth.AuthenticatedUser)
 	if hasUser {
-		return fmt.Sprintf("%v", user), true
+		return fmt.Sprintf("%v", user.Email), true
 	}
 	return "", false
 }
@@ -55,7 +59,17 @@ func assignUpdatedBy(scope *gorm.DB) {
 				scope.InstanceSet(gormUpdateAttrs, updateAttrs)
 			} else {
 				scope.Statement.SetColumn(updatedByObjectFieldName, user)
+				scope.Statement.SetColumn(lastModifiedFieldName, time.Now())
 			}
+		}
+	}
+}
+
+func assignCreated(scope *gorm.DB) {
+	if isAuditable(scope) {
+		if user, ok := GetCurrentUser(scope); ok {
+			scope.Statement.SetColumn(createdByObjectFieldName, user)
+			scope.Statement.SetColumn(createdAtFieldName, time.Now())
 		}
 	}
 }
@@ -74,7 +88,7 @@ func assignCreatedAndUpdatedBy(scope *gorm.DB) {
 func RegisterAuditCallbacks(db *gorm.DB) {
 	callback := db.Callback()
 	if callback.Create().Get(createCallbackKey) == nil {
-		callback.Create().Before(gormBeforeCreate).Register(createCallbackKey, assignCreatedAndUpdatedBy)
+		callback.Create().Before(gormBeforeCreate).Register(createCallbackKey, assignCreated)
 	}
 	if callback.Update().Get(updateCallbackKey) == nil {
 		callback.Update().Before(gormBeforeUpdate).Register(updateCallbackKey, assignUpdatedBy)

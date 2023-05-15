@@ -19,7 +19,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.UserInput
 		Name:     input.Name,
 		Email:    input.Email,
 		Password: input.Password,
-	})
+	}, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, input model.UserInput
 		Name:     input.Name,
 		Email:    input.Email,
 		Password: input.Password,
-	})
+	}, ctx)
 	if err != nil {
 		return nil, err
 	}

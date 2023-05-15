@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"example/web-service-gin/pkg/logger"
 	"fmt"
 
@@ -31,13 +32,15 @@ type IRepository interface {
 	GetOneByID(target interface{}, id string, preloads ...string) error
 
 	Create(target interface{}) error
+	CreateWithContext(target interface{}, ctx context.Context) error
 	Save(target interface{}) error
+	SaveWithContext(target interface{}, ctx context.Context) error
 	Delete(target interface{}) error
 
 	DBWithPreloads(preloads []string) *gorm.DB
 }
 
-type GormRepository struct {
+type gormRepository struct {
 	logger       logger.ILogger
 	db           *gorm.DB
 	defaultJoins []string
@@ -45,14 +48,14 @@ type GormRepository struct {
 
 // NewGormRepository returns a new base repository that implements TransactionRepository
 func NewGormRepository(db *gorm.DB, logger logger.ILogger, defaultJoins ...string) IRepository {
-	return &GormRepository{
+	return &gormRepository{
 		defaultJoins: defaultJoins,
 		logger:       logger,
 		db:           db,
 	}
 }
 
-func (r *GormRepository) GetAll(target interface{}, preloads ...string) error {
+func (r *gormRepository) GetAll(target interface{}, preloads ...string) error {
 	res := r.DBWithPreloads(preloads).
 		Unscoped().
 		Find(target)
@@ -60,7 +63,7 @@ func (r *GormRepository) GetAll(target interface{}, preloads ...string) error {
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) GetBatch(target interface{}, limit, offset int, preloads ...string) error {
+func (r *gormRepository) GetBatch(target interface{}, limit, offset int, preloads ...string) error {
 	res := r.DBWithPreloads(preloads).
 		Unscoped().
 		Limit(limit).
@@ -70,7 +73,7 @@ func (r *GormRepository) GetBatch(target interface{}, limit, offset int, preload
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) GetWhere(target interface{}, condition string, preloads ...string) error {
+func (r *gormRepository) GetWhere(target interface{}, condition string, preloads ...string) error {
 	res := r.DBWithPreloads(preloads).
 		Where(condition).
 		Find(target)
@@ -78,7 +81,7 @@ func (r *GormRepository) GetWhere(target interface{}, condition string, preloads
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) GetWhereBatch(target interface{}, condition string, limit, offset int, preloads ...string) error {
+func (r *gormRepository) GetWhereBatch(target interface{}, condition string, limit, offset int, preloads ...string) error {
 	res := r.DBWithPreloads(preloads).
 		Where(condition).
 		Limit(limit).
@@ -88,7 +91,7 @@ func (r *GormRepository) GetWhereBatch(target interface{}, condition string, lim
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) CountWhere(target interface{}, total *int64, condition string) error {
+func (r *gormRepository) CountWhere(target interface{}, total *int64, condition string) error {
 	res := r.db.Model(target).
 		Where(condition).
 		Count(total)
@@ -96,7 +99,7 @@ func (r *GormRepository) CountWhere(target interface{}, total *int64, condition 
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) GetByField(target interface{}, field string, value interface{}, preloads ...string) error {
+func (r *gormRepository) GetByField(target interface{}, field string, value interface{}, preloads ...string) error {
 	res := r.DBWithPreloads(preloads).
 		Where(fmt.Sprintf("%v = ?", field), value).
 		Find(target)
@@ -104,7 +107,7 @@ func (r *GormRepository) GetByField(target interface{}, field string, value inte
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) GetByFields(target interface{}, filters map[string]interface{}, preloads ...string) error {
+func (r *gormRepository) GetByFields(target interface{}, filters map[string]interface{}, preloads ...string) error {
 	db := r.DBWithPreloads(preloads)
 	for field, value := range filters {
 		db = db.Where(fmt.Sprintf("%v = ?", field), value)
@@ -115,7 +118,7 @@ func (r *GormRepository) GetByFields(target interface{}, filters map[string]inte
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) GetByFieldBatch(target interface{}, field string, value interface{}, limit, offset int, preloads ...string) error {
+func (r *gormRepository) GetByFieldBatch(target interface{}, field string, value interface{}, limit, offset int, preloads ...string) error {
 	res := r.DBWithPreloads(preloads).
 		Where(fmt.Sprintf("%v = ?", field), value).
 		Limit(limit).
@@ -125,7 +128,7 @@ func (r *GormRepository) GetByFieldBatch(target interface{}, field string, value
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) GetByFieldsBatch(target interface{}, filters map[string]interface{}, limit, offset int, preloads ...string) error {
+func (r *gormRepository) GetByFieldsBatch(target interface{}, filters map[string]interface{}, limit, offset int, preloads ...string) error {
 	db := r.DBWithPreloads(preloads)
 	for field, value := range filters {
 		db = db.Where(fmt.Sprintf("%v = ?", field), value)
@@ -139,7 +142,7 @@ func (r *GormRepository) GetByFieldsBatch(target interface{}, filters map[string
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) GetOneByField(target interface{}, field string, value interface{}, preloads ...string) error {
+func (r *gormRepository) GetOneByField(target interface{}, field string, value interface{}, preloads ...string) error {
 	res := r.DBWithPreloads(preloads).
 		Where(fmt.Sprintf("%v = ?", field), value).
 		First(target)
@@ -147,7 +150,7 @@ func (r *GormRepository) GetOneByField(target interface{}, field string, value i
 	return r.HandleOneError(res)
 }
 
-func (r *GormRepository) GetOneByFields(target interface{}, filters map[string]interface{}, preloads ...string) error {
+func (r *gormRepository) GetOneByFields(target interface{}, filters map[string]interface{}, preloads ...string) error {
 	db := r.DBWithPreloads(preloads)
 	for field, value := range filters {
 		db = db.Where(fmt.Sprintf("%v = ?", field), value)
@@ -157,45 +160,53 @@ func (r *GormRepository) GetOneByFields(target interface{}, filters map[string]i
 	return r.HandleOneError(res)
 }
 
-func (r *GormRepository) GetOneByID(target interface{}, id string, preloads ...string) error {
+func (r *gormRepository) GetOneByID(target interface{}, id string, preloads ...string) error {
 	res := r.DBWithPreloads(preloads).
 		Where("id = ?", id).
 		First(target)
 
 	return r.HandleOneError(res)
 }
-
-func (r *GormRepository) Create(target interface{}) error {
+func (r *gormRepository) Create(target interface{}) error {
 	res := r.db.Create(target)
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) CreateTx(target interface{}, tx *gorm.DB) error {
+func (r *gormRepository) CreateWithContext(target interface{}, ctx context.Context) error {
+	res := r.db.WithContext(ctx).Create(target)
+	return r.HandleError(res)
+}
+
+func (r *gormRepository) CreateTx(target interface{}, tx *gorm.DB) error {
 	res := tx.Create(target)
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) Save(target interface{}) error {
+func (r *gormRepository) Save(target interface{}) error {
 	res := r.db.Save(target)
 	return r.HandleError(res)
 }
+func (r *gormRepository) SaveWithContext(target interface{}, ctx context.Context) error {
+	res := r.db.WithContext(ctx).Save(target)
+	return r.HandleError(res)
+}
 
-func (r *GormRepository) SaveTx(target interface{}, tx *gorm.DB) error {
+func (r *gormRepository) SaveTx(target interface{}, tx *gorm.DB) error {
 	res := tx.Save(target)
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) Delete(target interface{}) error {
+func (r *gormRepository) Delete(target interface{}) error {
 	res := r.db.Delete(target)
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) DeleteTx(target interface{}, tx *gorm.DB) error {
+func (r *gormRepository) DeleteTx(target interface{}, tx *gorm.DB) error {
 	res := tx.Delete(target)
 	return r.HandleError(res)
 }
 
-func (r *GormRepository) HandleError(res *gorm.DB) error {
+func (r *gormRepository) HandleError(res *gorm.DB) error {
 	if res.Error != nil && res.Error != gorm.ErrRecordNotFound {
 		err := fmt.Errorf("DB: %w", res.Error)
 		r.logger.Error(err)
@@ -205,7 +216,7 @@ func (r *GormRepository) HandleError(res *gorm.DB) error {
 	return nil
 }
 
-func (r *GormRepository) HandleOneError(res *gorm.DB) error {
+func (r *gormRepository) HandleOneError(res *gorm.DB) error {
 	if err := r.HandleError(res); err != nil {
 		return err
 	}
@@ -217,7 +228,7 @@ func (r *GormRepository) HandleOneError(res *gorm.DB) error {
 	return nil
 }
 
-func (r *GormRepository) DBWithPreloads(preloads []string) *gorm.DB {
+func (r *gormRepository) DBWithPreloads(preloads []string) *gorm.DB {
 	dbConn := r.db
 
 	for _, join := range r.defaultJoins {
