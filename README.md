@@ -5,7 +5,7 @@ This project employs a practical API written in the Golang programming language.
 
 
 # Technical Stack
-- GraphQL with gqlgen
+- GraphQL with graphql-go
 - Gorm
 - PostgreSQL
 - Log in with go.uber.org/zap

@@ -1,7 +1,7 @@
 package audit
 
 import (
-	"example/web-service-gin/internal/auth"
+	"example/web-service-gin/pkg/middleware/auth"
 	"fmt"
 	"time"
 

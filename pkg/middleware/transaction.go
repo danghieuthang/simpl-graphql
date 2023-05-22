@@ -1,11 +1,9 @@
-package extensions
+package middleware
 
 import (
 	"context"
 	"errors"
 	"sync"
-
-	constant "example/web-service-gin/internal/constant"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -16,12 +14,6 @@ import (
 type GqlTransaction struct {
 	DB *gorm.DB
 }
-
-var _ interface {
-	graphql.HandlerExtension
-	graphql.OperationContextMutator
-	graphql.ResponseInterceptor
-} = GqlTransaction{}
 
 // ExtensionName returns the extension name.
 func (GqlTransaction) ExtensionName() string {
@@ -68,7 +60,7 @@ func (t GqlTransaction) InterceptResponse(ctx context.Context, next graphql.Resp
 			panic(r)
 		}
 	}()
-	ctx = context.WithValue(ctx, constant.DbContextKey, tx)
+	ctx = context.WithValue(ctx, "tx", tx)
 	rsp := next(ctx)
 	if len(rsp.Errors) > 0 {
 		_ = tx.Rollback()

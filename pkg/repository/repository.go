@@ -173,12 +173,8 @@ func (r *gormRepository) Create(target interface{}) error {
 }
 
 func (r *gormRepository) CreateWithContext(target interface{}, ctx context.Context) error {
-	res := r.db.WithContext(ctx).Create(target)
-	return r.HandleError(res)
-}
-
-func (r *gormRepository) CreateTx(target interface{}, tx *gorm.DB) error {
-	res := tx.Create(target)
+	db := r.getTxFromContext(ctx)
+	res := db.WithContext(ctx).Create(target)
 	return r.HandleError(res)
 }
 
@@ -187,12 +183,8 @@ func (r *gormRepository) Save(target interface{}) error {
 	return r.HandleError(res)
 }
 func (r *gormRepository) SaveWithContext(target interface{}, ctx context.Context) error {
-	res := r.db.WithContext(ctx).Save(target)
-	return r.HandleError(res)
-}
-
-func (r *gormRepository) SaveTx(target interface{}, tx *gorm.DB) error {
-	res := tx.Save(target)
+	db := r.getTxFromContext(ctx)
+	res := db.WithContext(ctx).Save(target)
 	return r.HandleError(res)
 }
 
@@ -201,11 +193,11 @@ func (r *gormRepository) Delete(target interface{}) error {
 	return r.HandleError(res)
 }
 
-func (r *gormRepository) DeleteTx(target interface{}, tx *gorm.DB) error {
+func (r *gormRepository) DeleteWithContext(ctx context.Context, target interface{}) error {
+	tx := r.getTxFromContext(ctx)
 	res := tx.Delete(target)
 	return r.HandleError(res)
 }
-
 func (r *gormRepository) HandleError(res *gorm.DB) error {
 	if res.Error != nil && res.Error != gorm.ErrRecordNotFound {
 		err := fmt.Errorf("DB: %w", res.Error)
@@ -241,4 +233,14 @@ func (r *gormRepository) DBWithPreloads(preloads []string) *gorm.DB {
 	}
 
 	return dbConn
+}
+
+// Get the executing transaction from the context.
+// If not exist in context then return default.
+func (r *gormRepository) getTxFromContext(ctx context.Context) *gorm.DB {
+	tx, ok := ctx.Value("tx").(*gorm.DB)
+	if ok {
+		return tx
+	}
+	return r.db
 }

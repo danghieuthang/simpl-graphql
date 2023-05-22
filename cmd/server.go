@@ -2,17 +2,17 @@ package main
 
 import (
 	"context"
-	"example/web-service-gin/config"
 	"example/web-service-gin/graph"
-	"example/web-service-gin/graph/extensions"
-	"example/web-service-gin/internal/auth"
+	"example/web-service-gin/graph/resolver"
+	"example/web-service-gin/internal/config"
 	"example/web-service-gin/internal/constant/app_error"
-	"example/web-service-gin/internal/middleware"
+	"example/web-service-gin/internal/service"
 	"example/web-service-gin/pkg/database"
 	"example/web-service-gin/pkg/file"
 	"example/web-service-gin/pkg/logger"
+	"example/web-service-gin/pkg/middleware"
+	"example/web-service-gin/pkg/middleware/auth"
 	"example/web-service-gin/pkg/repository"
-	"example/web-service-gin/pkg/service"
 	"fmt"
 	"log"
 	"net/http"
@@ -54,7 +54,7 @@ func main() {
 		Debug:            true,
 	}).Handler)
 
-	c := graph.Config{Resolvers: &graph.Resolver{
+	c := graph.Config{Resolvers: &resolver.Resolver{
 		ServiceFactory: serviceFactory,
 	}}
 
@@ -81,7 +81,7 @@ func main() {
 	}
 
 	server := handler.NewDefaultServer(graph.NewExecutableSchema(c))
-	server.Use(extensions.GqlTransaction{DB: database.DB})
+	server.Use(middleware.GqlTransaction{DB: database.DB})
 	server.SetErrorPresenter(func(ctx context.Context, e error) *gqlerror.Error {
 		err := graphql.DefaultErrorPresenter(ctx, e)
 		err.Extensions = map[string]interface{}{
