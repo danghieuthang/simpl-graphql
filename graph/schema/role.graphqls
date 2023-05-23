@@ -1,9 +1,0 @@
-type Role{
-  id: Int
-  name: String
-}
-
-type RolePage{
-    data: [Role]!
-    pageInfo: PageInfo!
-}

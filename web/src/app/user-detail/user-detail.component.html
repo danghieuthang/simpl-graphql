@@ -1,0 +1,11 @@
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+
+<div class="card">
+    <h1>{{user?.name}}</h1>
+    <h4 *ngIf="user?.role?.name">Role: {{user?.role?.name}}</h4>
+  <p class="title">Create At: {{user?.createdAt | date: 'dd/MM/yyyy'}}</p>
+  <p class="title">Last Modified: {{user?.lastModifiedAt | date: 'dd/MM/yyyy'}}</p>
+  <p><button>Contact: {{user?.email}}</button></p>
+</div>
