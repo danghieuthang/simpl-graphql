@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"context"
 	"example/web-service-gin/pkg/entity"
 	"example/web-service-gin/pkg/logger"
+	"fmt"
 	"os"
 	"time"
 
@@ -50,4 +52,13 @@ func ParseToken(tokenStr string) (*AuthenticatedUser, error) {
 	} else {
 		return nil, err
 	}
+}
+
+// GetCurrentUser gets the current user from context
+func GetCurrentUser(context context.Context) (string, bool) {
+	user, hasUser := context.Value("currentUser").(*AuthenticatedUser)
+	if hasUser {
+		return fmt.Sprintf("%v", user.Email), true
+	}
+	return "", false
 }

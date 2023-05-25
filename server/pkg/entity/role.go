@@ -9,3 +9,7 @@ type Role struct {
 	LastModifiedAt time.Time `json:"lastModifiedAt"`
 	IsDeleted      bool      `json:"isDeleted"`
 }
+
+func (u *Role) GetId() int {
+	return u.Id
+}

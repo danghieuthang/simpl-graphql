@@ -3,7 +3,9 @@ package audit
 import (
 	"example/web-service-gin/pkg/logger"
 	"example/web-service-gin/pkg/middleware/auth"
+	"example/web-service-gin/pkg/utils"
 	"fmt"
+	"reflect"
 	"time"
 
 	"gorm.io/gorm"
@@ -108,35 +110,67 @@ func isSchemaFieldAudit(auditFields []string, field *schema.Field) bool {
 }
 
 // assignCreatedAndUpdatedBy sets the value for both updated by and created by columns
-func assignCreatedAndUpdatedBy(scope *gorm.DB) {
+func assignCreatedAndUpdatedBy(scope *gorm.DB, action string) {
 	if isAuditTrail(scope) {
+		primaryKey, _ := scope.Statement.Schema.PrimaryFields[0].ValueOf(scope.Statement.Context, scope.Statement.ReflectValue)
+		key := fmt.Sprintf("%s.%v", scope.Statement.Schema.Name, primaryKey)
 		var auditData = AuditData{
-			Data: make(map[string]ChangeData),
+			Data:   make(map[string]ChangeData),
+			Key:    key,
+			Action: action,
 		}
 		if user, ok := GetCurrentUser(scope); ok {
 			auditData.CreatedBy = user
 		}
 		auditFields := GetFieldTrails(scope.Statement.Schema.Name)
-		for _, field := range scope.Statement.Schema.Fields {
-			if !isSchemaFieldAudit(auditFields, field) {
-				continue
-			}
 
-			if scope.Statement.Changed(field.Name) {
-				var changeData = &ChangeData{
-					From: fmt.Sprintf("%v", scope.Statement.Dest.(map[string]interface{})[field.Name].(string)),
+		ctx := scope.Statement.Context
+		changeTracker, hasTracking := ctx.Value("changeTracker").(IChangeTracker)
+		if hasTracking {
+			if oldValue, ok := changeTracker.Get(key); ok {
+				for _, field := range scope.Statement.Schema.Fields {
+					if !isSchemaFieldAudit(auditFields, field) {
+						continue
+					}
+
+					fromValue := fmt.Sprintf("%v", utils.GetFieldValue(oldValue, field.Name))
+					toValue, isZero := field.ValueOf(scope.Statement.Context, scope.Statement.ReflectValue)
+					if !isZero && !reflect.DeepEqual(fromValue, toValue) {
+						var changeData = &ChangeData{
+							From: fmt.Sprintf("%v", fromValue),
+							To:   fmt.Sprintf("%v", toValue),
+						}
+						auditData.Data[field.Name] = *changeData
+					}
 				}
-				fieldValue, isZero := field.ValueOf(scope.Statement.Context, scope.Statement.ReflectValue)
-				if !isZero {
-					changeData.From = fmt.Sprint("%v", fieldValue)
-				} else {
-					changeData.From = ""
+			} else {
+				for _, field := range scope.Statement.Schema.Fields {
+					if !isSchemaFieldAudit(auditFields, field) {
+						continue
+					}
+					var changeData = &ChangeData{
+						From: "",
+					}
+					fieldValue, isZero := field.ValueOf(scope.Statement.Context, scope.Statement.ReflectValue)
+					if !isZero {
+						changeData.To = fmt.Sprintf("%v", fieldValue)
+					} else {
+						changeData.From = ""
+					}
+					auditData.Data[field.Name] = *changeData
 				}
-				auditData.Data[field.Name] = *changeData
 			}
 		}
+
 		logger.Logger.Info(auditData)
 	}
+}
+
+func auditCreate(scope *gorm.DB) {
+	assignCreatedAndUpdatedBy(scope, AuditActionCreate)
+}
+func auditUpdate(scope *gorm.DB) {
+	assignCreatedAndUpdatedBy(scope, AuditActionUpdate)
 }
 
 // RegisterAuditCallbacks register callback into GORM DB
@@ -149,10 +183,10 @@ func RegisterAuditCallbacks(tx *gorm.DB) {
 		callback.Update().Before(gormBeforeUpdate).Register(updateCallbackKey, assignUpdatedBy)
 	}
 
-	// if callback.Create().Get(auditCreatedCallbackKey) == nil {
-	// 	callback.Create().Before(gormAfterCreate).Register(auditCreatedCallbackKey, assignCreatedAndUpdatedBy)
-	// }
-	// if callback.Update().Get(auditUpdatedCallbackKey) == nil {
-	// 	callback.Update().Before(gormAfterUpdate).Register(auditUpdatedCallbackKey, assignCreatedAndUpdatedBy)
-	// }
+	if callback.Create().Get(auditCreatedCallbackKey) == nil {
+		callback.Create().Before(gormAfterCreate).Register(auditCreatedCallbackKey, auditCreate)
+	}
+	if callback.Update().Get(auditUpdatedCallbackKey) == nil {
+		callback.Update().Before(gormAfterUpdate).Register(auditUpdatedCallbackKey, auditUpdate)
+	}
 }

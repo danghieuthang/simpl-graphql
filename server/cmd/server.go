@@ -13,7 +13,6 @@ import (
 	"example/web-service-gin/pkg/logger"
 	"example/web-service-gin/pkg/middleware"
 	"example/web-service-gin/pkg/middleware/auth"
-	"example/web-service-gin/pkg/repository"
 	"fmt"
 	"log"
 	"net/http"
@@ -45,8 +44,8 @@ func main() {
 		port = defaultPort
 	}
 
-	repository := repository.NewGormRepository(database.DB, logger.Logger)
-	serviceFactory := service.InitServices(repository)
+	// repository := repository.N(database.DB, logger.Logger)
+	serviceFactory := service.InitServices(database.DB, logger.Logger)
 
 	router := chi.NewRouter()
 	// Add CORS middleware around every request
@@ -87,10 +86,14 @@ func main() {
 	server.Use(middleware.GqlTransaction{DB: database.DB})
 	server.SetErrorPresenter(func(ctx context.Context, e error) *gqlerror.Error {
 		err := graphql.DefaultErrorPresenter(ctx, e)
-		err.Extensions = map[string]interface{}{
-			"code": err.Message,
+		message := app_error.GetErrorMessage(err.Message)
+		if message != "" {
+			err.Extensions = map[string]interface{}{
+				"code": err.Message,
+			}
+			err.Message = message
+			return err
 		}
-		err.Message = app_error.GetErrorMessage(err.Message)
 		return err
 	})
 

@@ -2,10 +2,6 @@
     "Enable": true,
     "Configurations": {
         "User": {
-            "Id": {
-                "Name": "User ID",
-                "Code": "UI_003"
-            },
             "Name": {
                 "Name": "User Name",
                 "Code": "UI_004"

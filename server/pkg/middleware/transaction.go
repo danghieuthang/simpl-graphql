@@ -3,6 +3,8 @@ package middleware
 import (
 	"context"
 	"errors"
+	"example/web-service-gin/pkg/audit"
+	"example/web-service-gin/pkg/middleware/auth"
 	"sync"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -47,6 +49,11 @@ func (t GqlTransaction) InterceptResponse(ctx context.Context, next graphql.Resp
 	if op := graphql.GetOperationContext(ctx).Operation; op == nil || op.Operation != ast.Mutation {
 		return next(ctx)
 	}
+	// Add change tracker
+	currentUser, _ := auth.GetCurrentUser(ctx)
+	changeTracker := audit.NewChangeTracker(currentUser)
+	ctx = context.WithValue(ctx, "changeTracker", changeTracker)
+
 	tx := t.DB.WithContext(ctx).Begin()
 	err := tx.Error
 	if err != nil {
@@ -60,6 +67,7 @@ func (t GqlTransaction) InterceptResponse(ctx context.Context, next graphql.Resp
 			panic(r)
 		}
 	}()
+
 	ctx = context.WithValue(ctx, "tx", tx)
 	rsp := next(ctx)
 	if len(rsp.Errors) > 0 {

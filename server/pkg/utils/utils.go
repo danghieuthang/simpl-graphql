@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -47,4 +48,30 @@ func Contains(s []interface{}, str string) bool {
 	}
 
 	return false
+}
+
+func Map[T any](s interface{}) *T {
+	var target T
+	ms, _ := json.Marshal(s)
+	json.Unmarshal(ms, &target)
+	return &target
+}
+
+func GetType(t interface{}) string {
+	valueOf := reflect.ValueOf(t)
+
+	if valueOf.Type().Kind() == reflect.Ptr {
+		return reflect.Indirect(valueOf).Type().Name()
+	} else {
+		return valueOf.Type().Name()
+	}
+}
+
+func GetFieldValue(v interface{}, field string) interface{} {
+	valueOf := reflect.ValueOf(v)
+	if valueOf.Type().Kind() == reflect.Ptr {
+		return reflect.Indirect(valueOf).FieldByName(field)
+	} else {
+		return valueOf.FieldByName(field)
+	}
 }
