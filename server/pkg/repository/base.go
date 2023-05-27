@@ -153,6 +153,6 @@ func (r BaseRepository[T]) trackingData(ctx context.Context, data T) {
 	changeTracker, ok := ctx.Value("changeTracker").(audit.IChangeTracker)
 	if ok {
 		key := fmt.Sprintf("%s.%d", utils.GetType(data), data.GetId())
-		changeTracker.Tracking(key, data)
+		changeTracker.Set(key, data)
 	}
 }
