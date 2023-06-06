@@ -1,4 +1,4 @@
-# prac-golang
+# Simpl-GraphQL
 
 
 This project employs a practical GraphQL API written in the Golang programming language.
