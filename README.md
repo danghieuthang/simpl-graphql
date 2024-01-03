@@ -25,45 +25,46 @@ This project employs a practical GraphQL API written in the Golang programming l
 
 
 # Project organization
-```
-├───assets
-├───cmd
-│   ├───assets
-│   ├───config
-│   ├───env
-│   ├───logs
-│   └───migrations
-├───graph
-│   ├───model
-│   ├───resolver
-│   └───schema
-├───internal
-│   ├───config
-│   ├───constant
-│   │   ├───app_error
-│   │   └───enum
-│   └───service
-│       ├───role
-│       └───user
-├───pkg
-│   ├───audit
-│   ├───database
-│   ├───entity
-│   ├───file
-│   ├───logger
-│   ├───middleware
-│   │   └───auth
-│   ├───repository
-│   └───utils
-└───ui
-    ├───.vscode
-    └───src
-        ├───app
-        │   ├───app-footer
-        │   ├───app-header
-        │   ├───graphql
-        │   ├───user-detail
-        │   └───user-list
-        └───assets
-```
 
+
+```
+- assets
+- cmd
+    - assets
+    - config
+    - env
+    - logs
+    - migrations
+- graph
+    - model
+    - resolver
+    - schema
+- internal
+    - config
+    - constant
+        - app_error
+        - enum
+    - service
+        - role
+        - user
+- pkg
+    - audit
+    - database
+    - entity
+    - file
+    - logger
+    - middleware
+        - auth
+    - repository
+    - utils
+- ui
+    - .vscode
+    - src
+        - app
+            - app-footer
+            - app-header
+            - graphql
+            - user-detail
+            - user-list
+        - assets
+```
