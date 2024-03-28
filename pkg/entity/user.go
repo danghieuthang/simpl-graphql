@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/danghieuthang/go-concurrency"
 	"time"
 )
 
@@ -16,12 +17,13 @@ type User struct {
 	Email          string `form:"unique" json:"email"`
 	Password       string
 	RoleId         *int
-	Role           Role      `gorm:"constraint:OnDelete:SET NULL;`
-	CreatedAt      time.Time `json:"createdAt"`
-	LastModifiedAt time.Time `json:"lastModifiedAt"`
-	IsDeleted      bool      `json:"isDeleted"`
-	CreatedBy      *string   `json:"createdBy"`
-	UpdatedBy      *string   `json:"updatedBy"`
+	Role           Role                `gorm:"constraint:OnDelete:SET NULL;`
+	CreatedAt      time.Time           `json:"createdAt"`
+	LastModifiedAt time.Time           `json:"lastModifiedAt"`
+	IsDeleted      bool                `json:"isDeleted"`
+	CreatedBy      *string             `json:"createdBy"`
+	UpdatedBy      *string             `json:"updatedBy"`
+	Version        concurrency.Version `json:"version"`
 }
 
 func (u *User) GetId() int {

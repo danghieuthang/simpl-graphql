@@ -78,7 +78,7 @@ func (c *userService) List(ctx context.Context, name string, page int, pageSize 
 
 func (c *userService) Login(ctx context.Context, email string, password string) (*entity.User, error) {
 	condition := fmt.Sprintf("email = '%s' ", email)
-	user, err := c.repository.GetOne(ctx, condition)
+	user, err := c.repository.GetOneAsNoTracking(ctx, condition, "Role")
 	if err != nil {
 		return nil, err
 	}

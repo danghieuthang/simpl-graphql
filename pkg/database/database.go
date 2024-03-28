@@ -1,6 +1,7 @@
 package database
 
 import (
+	"example/web-service-gin/pkg/entity"
 	"os"
 
 	"gorm.io/driver/postgres"
@@ -19,4 +20,6 @@ func InitializeDatabase() {
 	if err != nil {
 		panic(err)
 	}
+
+	DB.AutoMigrate(&entity.Role{}, &entity.User{})
 }

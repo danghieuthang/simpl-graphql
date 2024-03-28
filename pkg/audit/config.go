@@ -22,7 +22,7 @@ var AuditConfig AuditConfiguration
 func RegisterAudit() {
 	raw, err := os.ReadFile("config/audit.json")
 	if err != nil {
-		logger.Logger.Info("Error occured while reading config/audit.json")
+		logger.Logger.Info("Error occurred while reading config/audit.json")
 		return
 	}
 	json.Unmarshal(raw, &AuditConfig)

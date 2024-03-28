@@ -1,7 +1,7 @@
 This migrate using golang-migrate https://github.com/golang-migrate/migrate
 
 ### Setup and installation
-####Window: 
+#### Window: 
 - scoop https://scoop.sh/
 - Install golang migrate:
 ```
