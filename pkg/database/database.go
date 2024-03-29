@@ -3,6 +3,7 @@ package database
 import (
 	"example/web-service-gin/pkg/entity"
 	"os"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -20,6 +21,19 @@ func InitializeDatabase() {
 	if err != nil {
 		panic(err)
 	}
+
+	sqlDB, err := DB.DB()
+	if err != nil {
+		panic(err)
+	}
+	// SetMaxIdleConns sets the maximum number of connections in the idle connection pool.
+	sqlDB.SetMaxIdleConns(200)
+
+	// SetMaxOpenConns sets the maximum number of open connections to the database.
+	sqlDB.SetMaxOpenConns(1024)
+
+	// SetConnMaxLifetime sets the maximum amount of time a connection may be reused.
+	sqlDB.SetConnMaxLifetime(time.Minute * 15)
 
 	DB.AutoMigrate(&entity.Role{}, &entity.User{})
 }
